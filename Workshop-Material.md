@@ -14,7 +14,7 @@ You can build your Capstone project on one of the provided datasets, or bring yo
 - **Bring your own** — any dataset of your choice is welcome
 ## Or use one of these 2 below
 - **E-commerce** — https://github.com/luminati-io/eCommerce-dataset-samples
-- **Find a Physician** — https://data.cms.gov/provider-data/dataset/4pq5-n9py
+- **Find a Physician** — https://github.com/bommas/Dell-AIDP-DDSE-Workshop/blob/main/NH_ProviderInfo_Jun2026.csv
 
 Build your own Elastic-powered demo, end to end, using a lab environment. Full creative authority — pick dataset, story, and UI. Goal: leave with a repeatable demo you can run live, day-of, in minutes.
 
@@ -36,7 +36,7 @@ Don't skip this — it covers the concepts (vector search, hybrid search, RAG) y
 Any dataset works. Two examples Sunile and Satish have used, listed in `datasets.txt`:
 
 - **E-commerce** — https://github.com/luminati-io/eCommerce-dataset-samples
-- **Find a Physician** — https://data.cms.gov/provider-data/dataset/4pq5-n9py
+- **Find a Physician** — https://github.com/bommas/Dell-AIDP-DDSE-Workshop/blob/main/NH_ProviderInfo_Jun2026.csv
 
 Pick something with a story: a search problem a lexical-only or vector-only engine handles badly, that hybrid search / filters / geo fixes well.
 
