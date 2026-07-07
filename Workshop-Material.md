@@ -12,7 +12,7 @@
 You can build your Capstone project on one of the provided datasets, or bring your own.
 
 - **Bring your own** — any dataset of your choice is welcome
-# Or use one of these 2 below
+## Or use one of these 2 below
 - **E-commerce** — https://github.com/luminati-io/eCommerce-dataset-samples
 - **Find a Physician** — https://data.cms.gov/provider-data/dataset/4pq5-n9py
 
