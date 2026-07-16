@@ -33,4 +33,12 @@ else
     echo "Directory Dell-AIDP-DDSE-Workshop already exists. Skipping clone."
 fi
 
+# 5. Alias python -> python3.14 for interactive shells
+echo "Configuring python alias (python -> python3.14)..."
+if ! grep -qxF 'alias python=python3.14' "$TARGET_DIR/.bashrc" 2>/dev/null; then
+    echo 'alias python=python3.14' >> "$TARGET_DIR/.bashrc"
+fi
+# Also expose for login shells / non-interactive sourced profiles
+printf '%s\n' 'alias python=python3.14' > /etc/profile.d/python-alias.sh
+
 echo "=== Setup Completed Successfully! ==="

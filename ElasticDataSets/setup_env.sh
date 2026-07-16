@@ -48,10 +48,16 @@ if [[ ! $ES_URL =~ ^https?:// ]]; then
 fi
 
 # Create .env file for python-dotenv
+# Derive Kibana URL from ES_URL when KIBANA_URL is not set (Elastic Cloud .es. → .kb.)
+if [ -z "${KIBANA_URL:-}" ] && [[ "${ES_URL}" == *".es."* ]]; then
+    KIBANA_URL="${ES_URL/.es./.kb.}"
+fi
+
 cat > .env << EOL
 # Elasticsearch Configuration
 ES_URL=$ES_URL
 ES_API_KEY=$ES_API_KEY
+KIBANA_URL=${KIBANA_URL:-}
 ELSER_INFERENCE_ID=${ELSER_INFERENCE_ID:-.elser-2-elasticsearch}
 EMBEDDING_INFERENCE_ID=${EMBEDDING_INFERENCE_ID:-jina-embeddings-v3}
 JINA_MODEL_ID=${JINA_MODEL_ID:-jina-embeddings-v3}

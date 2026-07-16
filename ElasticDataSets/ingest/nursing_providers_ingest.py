@@ -462,6 +462,26 @@ def main() -> None:
     print(f"{'=' * 80}")
     create_index_with_mapping(INDEX_NAME, mapping_config)
 
+    # Create Kibana data view if missing (Discover / Lens)
+    try:
+        import sys
+        from pathlib import Path as _Path
+
+        _ingest_dir = str(_Path(__file__).resolve().parent)
+        if _ingest_dir not in sys.path:
+            sys.path.insert(0, _ingest_dir)
+        from ensure_dataview import ensure_data_view
+
+        ensure_data_view(
+            INDEX_NAME,
+            name="Nursing Providers",
+            time_field="timestamp",
+            es_url=ES_URL,
+            api_key=ES_API_KEY,
+        )
+    except Exception as e:
+        print(f"⚠️  Data view step skipped: {e}")
+
     csv_file_path = os.path.join(os.path.dirname(__file__), "..", CSV_FILENAME)
     documents = process_csv_file(csv_file_path)
 
