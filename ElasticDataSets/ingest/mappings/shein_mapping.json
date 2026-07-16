@@ -1,0 +1,109 @@
+{
+  "mappings": {
+    "properties": {
+      "product_name": {
+        "type": "text",
+        "analyzer": "standard",
+        "copy_to": ["product_name_semantic"]
+      },
+      "description": {
+        "type": "text",
+        "analyzer": "standard",
+        "copy_to": ["description_semantic"]
+      },
+      "initial_price": {
+        "type": "float"
+      },
+      "final_price": {
+        "type": "float"
+      },
+      "currency": {
+        "type": "keyword"
+      },
+      "in_stock": {
+        "type": "boolean"
+      },
+      "color": {
+        "type": "keyword"
+      },
+      "size": {
+        "type": "keyword"
+      },
+      "reviews_count": {
+        "type": "integer"
+      },
+      "main_image": {
+        "type": "keyword"
+      },
+      "category_url": {
+        "type": "keyword"
+      },
+      "url": {
+        "type": "keyword"
+      },
+      "category_tree": {
+        "type": "object",
+        "enabled": false
+      },
+      "country_code": {
+        "type": "keyword"
+      },
+      "domain": {
+        "type": "keyword"
+      },
+      "image_count": {
+        "type": "integer"
+      },
+      "image_urls": {
+        "type": "object",
+        "enabled": false
+      },
+      "model_number": {
+        "type": "keyword"
+      },
+      "offers": {
+        "type": "text"
+      },
+      "other_attributes": {
+        "type": "object",
+        "enabled": false
+      },
+      "product_id": {
+        "type": "keyword"
+      },
+      "rating": {
+        "type": "float"
+      },
+      "related_products": {
+        "type": "text"
+      },
+      "root_category": {
+        "type": "keyword"
+      },
+      "top_reviews": {
+        "type": "text"
+      },
+      "category": {
+        "type": "keyword"
+      },
+      "brand": {
+        "type": "keyword"
+      },
+      "all_available_sizes": {
+        "type": "object",
+        "enabled": false
+      },
+      "product_name_semantic": {
+        "type": "semantic_text",
+        "inference_id": "${EMBEDDING_INFERENCE_ID}"
+      },
+      "description_semantic": {
+        "type": "semantic_text",
+        "inference_id": "${EMBEDDING_INFERENCE_ID}"
+      },
+      "timestamp": {
+        "type": "date"
+      }
+    }
+  }
+}
