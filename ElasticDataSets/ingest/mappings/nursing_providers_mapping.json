@@ -1,0 +1,67 @@
+{
+  "mappings": {
+    "properties": {
+      "ccn": { "type": "keyword" },
+      "provider_name": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        },
+        "copy_to": ["search_text", "provider_name_semantic"]
+      },
+      "provider_address": { "type": "text" },
+      "city": { "type": "keyword", "copy_to": ["search_text"] },
+      "state": { "type": "keyword", "copy_to": ["search_text"] },
+      "zip_code": { "type": "keyword" },
+      "telephone": { "type": "keyword" },
+      "county": { "type": "keyword", "copy_to": ["search_text"] },
+      "urban": { "type": "boolean" },
+      "ownership_type": { "type": "keyword", "copy_to": ["search_text"] },
+      "provider_type": { "type": "keyword" },
+      "chain_name": { "type": "keyword" },
+      "certified_beds": { "type": "integer" },
+      "avg_residents_per_day": { "type": "float" },
+      "is_synthetic": { "type": "boolean" },
+
+      "medical_specialty": {
+        "type": "keyword",
+        "copy_to": ["search_text", "medical_specialty_semantic"]
+      },
+      "medical_specialty_semantic": {
+        "type": "semantic_text",
+        "inference_id": "${EMBEDDING_INFERENCE_ID}"
+      },
+      "provider_name_semantic": {
+        "type": "semantic_text",
+        "inference_id": "${EMBEDDING_INFERENCE_ID}"
+      },
+      "search_text": { "type": "text" },
+
+      "overall_rating": { "type": "float" },
+      "health_inspection_rating": { "type": "float" },
+      "staffing_rating": { "type": "float" },
+      "qm_rating": { "type": "float" },
+
+      "patient_experience_rating": { "type": "float" },
+      "care_quality_rating": { "type": "float" },
+      "staff_responsiveness_rating": { "type": "float" },
+      "facility_cleanliness_rating": { "type": "float" },
+      "communication_rating": { "type": "float" },
+      "avg_patient_rating": { "type": "float" },
+
+      "location": { "type": "geo_point" },
+      "location_text": { "type": "keyword" },
+
+      "total_fines_usd": { "type": "float" },
+      "total_penalties": { "type": "integer" },
+      "nurse_staffing_hours_per_resident": { "type": "float" },
+      "nursing_staff_turnover_pct": { "type": "float" },
+
+      "approved_date": { "type": "date", "format": "yyyy-MM-dd||strict_date_optional_time" },
+      "processing_date": { "type": "date", "format": "yyyy-MM-dd||strict_date_optional_time" },
+      "last_health_inspection_date": { "type": "date", "format": "yyyy-MM-dd||strict_date_optional_time" },
+      "timestamp": { "type": "date" }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+# Secrets / local env
+.env
+variables.env
+scripts/elasticsearch_config.json
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
