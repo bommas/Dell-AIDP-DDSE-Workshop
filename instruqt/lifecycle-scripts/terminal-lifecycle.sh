@@ -38,7 +38,12 @@ echo "Configuring python alias (python -> python3.14)..."
 if ! grep -qxF 'alias python=python3.14' "$TARGET_DIR/.bashrc" 2>/dev/null; then
     echo 'alias python=python3.14' >> "$TARGET_DIR/.bashrc"
 fi
-# Also expose for login shells / non-interactive sourced profiles
-printf '%s\n' 'alias python=python3.14' > /etc/profile.d/python-alias.sh
+# Also expose for login shells when /etc/profile.d is available (do not fail setup if missing)
+if mkdir -p /etc/profile.d 2>/dev/null \
+    && printf '%s\n' 'alias python=python3.14' > /etc/profile.d/python-alias.sh 2>/dev/null; then
+    echo "Also wrote /etc/profile.d/python-alias.sh"
+else
+    echo "Warning: could not write /etc/profile.d/python-alias.sh; alias is in $TARGET_DIR/.bashrc only"
+fi
 
 echo "=== Setup Completed Successfully! ==="
