@@ -13,6 +13,14 @@ else
     echo "Git is already installed."
 fi
 
+# 1b. Ensure npm (Node.js) is installed for the React A2A chat app
+if ! command -v npm >/dev/null 2>&1; then
+    echo "npm not found. Installing npm (and Node.js)..."
+    apt-get update && apt-get install -y npm
+else
+    echo "npm is already installed ($(npm --version 2>/dev/null || echo unknown))."
+fi
+
 # 2. Define target directory and ensure it exists
 TARGET_DIR="/root"
 mkdir -p "$TARGET_DIR"
