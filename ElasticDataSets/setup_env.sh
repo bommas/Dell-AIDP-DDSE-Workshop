@@ -85,3 +85,50 @@ fi
 echo -e "${GREEN}Setup completed successfully!${NC}"
 echo -e "${GREEN}To activate the virtual environment, run: source venv/bin/activate${NC}"
 echo -e "${GREEN}Then run: python ingest.py providers   # or: python ingest.py ecommerce${NC}"
+
+# ---------------------------------------------------------------------------
+# A2A chat app (../chat-app): install deps and start proxy + Vite UI
+#   proxy: http://127.0.0.1:5174
+#   UI:    http://127.0.0.1:5173   (login: admin / admin)
+# ---------------------------------------------------------------------------
+CHAT_APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../chat-app" && pwd)"
+
+if [ ! -d "$CHAT_APP_DIR" ]; then
+    echo -e "${RED}Warning: chat-app not found at $CHAT_APP_DIR — skipping chat server startup.${NC}"
+    exit 0
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+    echo -e "${RED}Warning: npm not found — install Node.js 18+ to run the A2A chat app.${NC}"
+    exit 0
+fi
+
+echo -e "${GREEN}Setting up A2A chat app at $CHAT_APP_DIR ...${NC}"
+(
+    cd "$CHAT_APP_DIR"
+    if [ ! -d node_modules ]; then
+        echo -e "${GREEN}Installing chat-app npm dependencies...${NC}"
+        npm install --no-workspaces
+    else
+        echo -e "${GREEN}chat-app node_modules already present.${NC}"
+    fi
+)
+
+# Start only if the UI port is free
+if command -v lsof >/dev/null 2>&1 && lsof -iTCP:5173 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo -e "${GREEN}A2A chat UI already listening on :5173 — not starting another instance.${NC}"
+else
+    echo -e "${GREEN}Starting A2A chat (proxy :5174 + Vite :5173)...${NC}"
+    (
+        cd "$CHAT_APP_DIR"
+        # nohup so setup_env can exit; logs go to chat-app/chat-dev.log
+        nohup npm run dev >"$CHAT_APP_DIR/chat-dev.log" 2>&1 &
+        echo $! >"$CHAT_APP_DIR/chat-dev.pid"
+    )
+    echo -e "${GREEN}Chat app starting (pid $(cat "$CHAT_APP_DIR/chat-dev.pid" 2>/dev/null || echo '?')).${NC}"
+    echo -e "${GREEN}  UI:    http://127.0.0.1:5173${NC}"
+    echo -e "${GREEN}  Proxy: http://127.0.0.1:5174${NC}"
+    echo -e "${GREEN}  Login: admin / admin${NC}"
+    echo -e "${GREEN}  Logs:  $CHAT_APP_DIR/chat-dev.log${NC}"
+    echo -e "${GREEN}  Stop:  kill \$(cat $CHAT_APP_DIR/chat-dev.pid)${NC}"
+fi
