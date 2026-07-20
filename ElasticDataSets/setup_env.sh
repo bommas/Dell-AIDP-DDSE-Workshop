@@ -98,15 +98,27 @@ if [ ! -d "$CHAT_APP_DIR" ]; then
     exit 0
 fi
 
-if ! command -v npm >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
-    echo -e "${RED}Warning: Node.js/npm not found — need Node.js 20+ for the A2A chat app.${NC}"
-    exit 0
+# Ensure Node.js 20+ (Vite / chat-app requirement)
+need_node_install=0
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+    need_node_install=1
+else
+    node_major="$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+    if [ -z "$node_major" ] || [ "$node_major" -lt 20 ]; then
+        need_node_install=1
+    fi
 fi
 
-node_major="$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
-if [ -z "$node_major" ] || [ "$node_major" -lt 20 ]; then
-    echo -e "${RED}Warning: Node.js $(node -v) is too old (need 20+). Re-run terminal lifecycle or install Node 20 LTS.${NC}"
-    exit 0
+if [ "$need_node_install" -eq 1 ]; then
+    echo -e "${GREEN}Installing Node.js 20 LTS from NodeSource...${NC}"
+    if command -v sudo >/dev/null 2>&1; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    else
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+    fi
+    echo -e "${GREEN}Installed node $(node -v) / npm $(npm -v)${NC}"
 fi
 
 echo -e "${GREEN}Setting up A2A chat app at $CHAT_APP_DIR (node $(node -v)) ...${NC}"
