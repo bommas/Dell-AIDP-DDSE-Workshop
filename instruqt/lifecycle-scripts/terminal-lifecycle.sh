@@ -13,12 +13,33 @@ else
     echo "Git is already installed."
 fi
 
-# 1b. Ensure npm (Node.js) is installed for the React A2A chat app
-if ! command -v npm >/dev/null 2>&1; then
-    echo "npm not found. Installing npm (and Node.js)..."
-    apt-get update && apt-get install -y npm
+# 1b. Ensure Node.js 20+ (npm) for the React A2A chat app
+# Vite 5+/modern tooling need Node 20; distro `apt install npm` is often too old
+# (e.g. missing node:util styleText → Rolldown/Vite crash).
+need_node_install=0
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+    need_node_install=1
 else
-    echo "npm is already installed ($(npm --version 2>/dev/null || echo unknown))."
+    node_major="$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+    case "$node_major" in
+        ''|*[!0-9]*) need_node_install=1 ;;
+        *)
+            if [ "$node_major" -lt 20 ]; then
+                need_node_install=1
+            fi
+            ;;
+    esac
+fi
+
+if [ "$need_node_install" -eq 1 ]; then
+    echo "Installing Node.js 20 LTS (npm) from NodeSource..."
+    apt-get update
+    apt-get install -y ca-certificates curl gnupg
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+    echo "Installed node $(node -v) / npm $(npm -v)"
+else
+    echo "Node.js already OK ($(node -v), npm $(npm -v))."
 fi
 
 # 2. Define target directory and ensure it exists

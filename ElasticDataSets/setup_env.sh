@@ -98,20 +98,22 @@ if [ ! -d "$CHAT_APP_DIR" ]; then
     exit 0
 fi
 
-if ! command -v npm >/dev/null 2>&1; then
-    echo -e "${RED}Warning: npm not found — install Node.js 18+ to run the A2A chat app.${NC}"
+if ! command -v npm >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
+    echo -e "${RED}Warning: Node.js/npm not found — need Node.js 20+ for the A2A chat app.${NC}"
     exit 0
 fi
 
-echo -e "${GREEN}Setting up A2A chat app at $CHAT_APP_DIR ...${NC}"
+node_major="$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+if [ -z "$node_major" ] || [ "$node_major" -lt 20 ]; then
+    echo -e "${RED}Warning: Node.js $(node -v) is too old (need 20+). Re-run terminal lifecycle or install Node 20 LTS.${NC}"
+    exit 0
+fi
+
+echo -e "${GREEN}Setting up A2A chat app at $CHAT_APP_DIR (node $(node -v)) ...${NC}"
 (
     cd "$CHAT_APP_DIR"
-    if [ ! -d node_modules ]; then
-        echo -e "${GREEN}Installing chat-app npm dependencies...${NC}"
-        npm install --no-workspaces
-    else
-        echo -e "${GREEN}chat-app node_modules already present.${NC}"
-    fi
+    echo -e "${GREEN}Installing/updating chat-app npm dependencies...${NC}"
+    npm install --no-workspaces
 )
 
 # Start only if the UI port is free

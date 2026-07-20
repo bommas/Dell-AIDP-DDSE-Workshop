@@ -6,10 +6,12 @@ The browser talks to a local Node proxy (`server.mjs`). The proxy forwards `mess
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js **20+** (required)
 - An Elastic Cloud project with Agent Builder enabled
 - An API key with Agent Builder privileges
 - An agent ID (default Agent Builder agent is often `elastic-ai-agent`, or use your custom agent)
+
+> Instruqt labs install Node 20 via NodeSource in `terminal-lifecycle.sh`. Do not rely on distro `apt install npm` alone — it is often too old for Vite.
 
 ## Setup
 
