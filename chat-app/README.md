@@ -32,8 +32,8 @@ Or from `ElasticDataSets/`, `./setup_env.sh` installs chat-app deps (if needed) 
 
 This starts:
 
-- A2A proxy on `http://127.0.0.1:5174`
-- Vite UI on `http://127.0.0.1:5173` (proxies `/api` → the proxy)
+- A2A proxy on `0.0.0.0:5174`
+- Vite UI on `0.0.0.0:5173` (proxies `/api` → the proxy; reachable from outside the container/host)
 
 Open the UI and sign in with:
 

@@ -88,8 +88,8 @@ echo -e "${GREEN}Then run: python ingest.py providers   # or: python ingest.py e
 
 # ---------------------------------------------------------------------------
 # A2A chat app (../chat-app): install deps and start proxy + Vite UI
-#   proxy: http://127.0.0.1:5174
-#   UI:    http://127.0.0.1:5173   (login: admin / admin)
+#   proxy: http://0.0.0.0:5174
+#   UI:    http://0.0.0.0:5173   (login: admin / admin)
 # ---------------------------------------------------------------------------
 CHAT_APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../chat-app" && pwd)"
 
@@ -128,8 +128,8 @@ else
         echo $! >"$CHAT_APP_DIR/chat-dev.pid"
     )
     echo -e "${GREEN}Chat app starting (pid $(cat "$CHAT_APP_DIR/chat-dev.pid" 2>/dev/null || echo '?')).${NC}"
-    echo -e "${GREEN}  UI:    http://127.0.0.1:5173${NC}"
-    echo -e "${GREEN}  Proxy: http://127.0.0.1:5174${NC}"
+    echo -e "${GREEN}  UI:    http://0.0.0.0:5173 (reachable on all interfaces)${NC}"
+    echo -e "${GREEN}  Proxy: http://0.0.0.0:5174${NC}"
     echo -e "${GREEN}  Login: admin / admin${NC}"
     echo -e "${GREEN}  Logs:  $CHAT_APP_DIR/chat-dev.log${NC}"
     echo -e "${GREEN}  Stop:  kill \$(cat $CHAT_APP_DIR/chat-dev.pid)${NC}"

@@ -8,6 +8,8 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 
 const PORT = Number(process.env.PROXY_PORT || 5174);
+const HOST = process.env.PROXY_HOST || "0.0.0.0";
+
 
 const app = express();
 app.use(cors());
@@ -185,6 +187,6 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`[a2a-proxy] listening on http://127.0.0.1:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`[a2a-proxy] listening on http://${HOST}:${PORT}`);
 });
