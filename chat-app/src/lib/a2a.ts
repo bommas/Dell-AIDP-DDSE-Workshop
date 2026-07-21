@@ -1,7 +1,9 @@
 export type A2AConfig = {
   kibanaUrl: string;
+  esUrl: string;
   agentId: string;
   apiKey: string;
+  indexName: string;
 };
 
 export type ChatMessage = {
@@ -11,12 +13,37 @@ export type ChatMessage = {
   createdAt: number;
 };
 
+export type SearchHit = {
+  id: string;
+  score?: number;
+  title: string;
+  specialty: string;
+  city: string;
+  state: string;
+  address: string;
+  rating?: number;
+  patientRating?: number;
+  telephone: string;
+  zip: string;
+  location: { lat: number; lon: number } | null;
+  snippet: string;
+  index: string;
+};
+
+export type SearchResponse = {
+  total: number;
+  took?: number;
+  hits: SearchHit[];
+};
+
 const STORAGE_KEY = "a2a-chat-config";
 
 export const DEFAULT_CONFIG: A2AConfig = {
   kibanaUrl: "",
+  esUrl: "",
   agentId: "elastic-ai-agent",
   apiKey: "",
+  indexName: "nursing-providers",
 };
 
 export function loadConfig(): A2AConfig {
@@ -26,8 +53,10 @@ export function loadConfig(): A2AConfig {
     const parsed = JSON.parse(raw) as Partial<A2AConfig>;
     return {
       kibanaUrl: parsed.kibanaUrl ?? "",
+      esUrl: parsed.esUrl ?? "",
       agentId: parsed.agentId || DEFAULT_CONFIG.agentId,
       apiKey: parsed.apiKey ?? "",
+      indexName: parsed.indexName || DEFAULT_CONFIG.indexName,
     };
   } catch {
     return { ...DEFAULT_CONFIG };
@@ -39,7 +68,11 @@ export function saveConfig(config: A2AConfig): void {
 }
 
 export function isConfigReady(config: A2AConfig): boolean {
-  return Boolean(config.kibanaUrl.trim() && config.agentId.trim() && config.apiKey.trim());
+  return Boolean(
+    (config.kibanaUrl.trim() || config.esUrl.trim()) &&
+      config.agentId.trim() &&
+      config.apiKey.trim(),
+  );
 }
 
 export async function sendChat(config: A2AConfig, message: string): Promise<string> {
@@ -71,6 +104,30 @@ export async function sendChat(config: A2AConfig, message: string): Promise<stri
   }
 
   return data.reply;
+}
+
+export async function runSearch(config: A2AConfig, query: string): Promise<SearchResponse> {
+  const response = await fetch("/api/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kibanaUrl: config.kibanaUrl.trim(),
+      esUrl: config.esUrl.trim(),
+      apiKey: config.apiKey.trim(),
+      index: config.indexName.trim() || "nursing-providers",
+      query: query.trim(),
+    }),
+  });
+
+  const data = (await response.json()) as SearchResponse & { error?: string; details?: unknown };
+  if (!response.ok) {
+    throw new Error(data.error || `Search failed (${response.status})`);
+  }
+  return {
+    total: data.total ?? data.hits?.length ?? 0,
+    took: data.took,
+    hits: data.hits || [],
+  };
 }
 
 export async function fetchAgentCard(config: A2AConfig): Promise<unknown> {

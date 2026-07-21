@@ -49,7 +49,7 @@ export function SettingsPanel({ config, open, onClose, onSave }: Props) {
       <aside
         className="settings-panel"
         role="dialog"
-        aria-label="A2A connection settings"
+        aria-label="Connection settings"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="settings-header">
@@ -60,8 +60,7 @@ export function SettingsPanel({ config, open, onClose, onSave }: Props) {
         </header>
 
         <p className="settings-lead">
-          Point this chat at an Elastic Agent Builder agent over A2A. Values are stored in this
-          browser only.
+          Configure Elasticsearch search and Agent Builder A2A. Values stay in this browser only.
         </p>
 
         <label className="field">
@@ -71,6 +70,28 @@ export function SettingsPanel({ config, open, onClose, onSave }: Props) {
             placeholder="https://your-project.kb.us-east-1.aws.elastic.cloud"
             value={draft.kibanaUrl}
             onChange={(e) => update("kibanaUrl", e.target.value)}
+            autoComplete="off"
+          />
+        </label>
+
+        <label className="field">
+          <span>Elasticsearch URL (optional)</span>
+          <input
+            type="url"
+            placeholder="Derived from Kibana URL if empty (.kb. → .es.)"
+            value={draft.esUrl}
+            onChange={(e) => update("esUrl", e.target.value)}
+            autoComplete="off"
+          />
+        </label>
+
+        <label className="field">
+          <span>Search index</span>
+          <input
+            type="text"
+            placeholder="nursing-providers"
+            value={draft.indexName}
+            onChange={(e) => update("indexName", e.target.value)}
             autoComplete="off"
           />
         </label>

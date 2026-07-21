@@ -1,8 +1,11 @@
-# Elastic A2A Chat
+# Elastic Search + AI Mode
 
-Simple React chat UI that asks questions of an **Elastic Agent Builder** agent over the [A2A protocol](https://www.elastic.co/docs/explore-analyze/ai-features/agent-builder/a2a-server).
+Google-style search UI for workshop data:
 
-The browser talks to a local Node proxy (`server.mjs`). The proxy forwards `message/send` JSON-RPC requests to Kibana so you avoid CORS and keep credentials out of direct browser-to-Kibana calls—while still configuring **Kibana URL**, **Agent ID**, and **API key** in the UI.
+- **All** — Elasticsearch keyword/semantic search results
+- **AI Mode** — Agent Builder answer (A2A) on top, with the same search results below
+
+The browser talks to a local Node proxy (`server.mjs`) for both `/api/search` and `/api/chat` (A2A).
 
 ## Prerequisites
 
@@ -47,10 +50,12 @@ Then click **Settings** and enter:
 | Field | Example |
 |-------|---------|
 | Kibana URL | `https://your-project.kb.us-east-1.aws.elastic.cloud` |
+| Elasticsearch URL | optional — derived from Kibana (`.kb.` → `.es.`) if empty |
+| Search index | `nursing-providers` |
 | Agent ID | `elastic-ai-agent` (or your custom agent id) |
 | API key | Elastic API key |
 
-Use **Test agent card** to verify connectivity (`GET /api/agent_builder/a2a/{agentId}.json`), then **Save** and ask a question.
+Use **Test agent card**, then search (e.g. “dentists in Chicago”). Switch between **All** and **AI Mode**.
 
 Settings are stored in `localStorage` in this browser only.
 
