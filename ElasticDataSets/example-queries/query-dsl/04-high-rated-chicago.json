@@ -1,0 +1,46 @@
+{
+  "size": 20,
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "city": {
+              "value": "chicago",
+              "case_insensitive": true
+            }
+          }
+        },
+        {
+          "term": {
+            "state": "IL"
+          }
+        },
+        {
+          "range": {
+            "overall_rating": {
+              "gte": 4
+            }
+          }
+        }
+      ]
+    }
+  },
+  "sort": [
+    {
+      "overall_rating": "desc"
+    },
+    {
+      "avg_patient_rating": "desc"
+    }
+  ],
+  "_source": [
+    "provider_name",
+    "medical_specialty",
+    "city",
+    "state",
+    "overall_rating",
+    "avg_patient_rating",
+    "certified_beds"
+  ]
+}

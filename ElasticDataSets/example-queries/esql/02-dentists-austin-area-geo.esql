@@ -1,0 +1,9 @@
+// Semantic dentist search within ~40km of downtown Austin, TX
+// ST_DISTANCE returns meters; 40000 ≈ 40km
+FROM nursing-providers
+| WHERE MATCH(medical_specialty_semantic, "dentist dental care oral health")
+| WHERE ST_DISTANCE(location, TO_GEOPOINT("POINT(-97.7431 30.2672)")) < 40000
+| EVAL distance_km = ROUND(ST_DISTANCE(location, TO_GEOPOINT("POINT(-97.7431 30.2672)")) / 1000, 1)
+| SORT distance_km ASC
+| KEEP provider_name, medical_specialty, city, state, location, distance_km, overall_rating, avg_patient_rating
+| LIMIT 20

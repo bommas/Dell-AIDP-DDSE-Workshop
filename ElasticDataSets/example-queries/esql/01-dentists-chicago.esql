@@ -1,0 +1,7 @@
+// Semantic specialty search + Chicago IL filter
+// Run in Kibana ES|QL or: POST /_query  { "query": "<paste below>" }
+FROM nursing-providers
+| WHERE MATCH(medical_specialty_semantic, "dentist dental care oral health")
+| WHERE TO_LOWER(city) == "chicago" AND state == "IL"
+| KEEP provider_name, medical_specialty, city, state, location, overall_rating, avg_patient_rating
+| LIMIT 20

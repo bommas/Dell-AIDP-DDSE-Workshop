@@ -1,0 +1,70 @@
+{
+  "size": 20,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "semantic": {
+            "field": "medical_specialty_semantic",
+            "query": "dentist dental care"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "bool": {
+            "should": [
+              {
+                "bool": {
+                  "filter": [
+                    {
+                      "term": {
+                        "city": {
+                          "value": "chicago",
+                          "case_insensitive": true
+                        }
+                      }
+                    },
+                    {
+                      "term": {
+                        "state": "IL"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "bool": {
+                  "filter": [
+                    {
+                      "term": {
+                        "city": {
+                          "value": "austin",
+                          "case_insensitive": true
+                        }
+                      }
+                    },
+                    {
+                      "term": {
+                        "state": "TX"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "minimum_should_match": 1
+          }
+        }
+      ]
+    }
+  },
+  "_source": [
+    "provider_name",
+    "medical_specialty",
+    "city",
+    "state",
+    "overall_rating",
+    "avg_patient_rating"
+  ]
+}

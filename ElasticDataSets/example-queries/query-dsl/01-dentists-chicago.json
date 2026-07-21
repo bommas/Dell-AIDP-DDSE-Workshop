@@ -1,0 +1,39 @@
+{
+  "size": 20,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "semantic": {
+            "field": "medical_specialty_semantic",
+            "query": "dentist dental care oral health"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "term": {
+            "city": {
+              "value": "chicago",
+              "case_insensitive": true
+            }
+          }
+        },
+        {
+          "term": {
+            "state": "IL"
+          }
+        }
+      ]
+    }
+  },
+  "_source": [
+    "provider_name",
+    "medical_specialty",
+    "city",
+    "state",
+    "location",
+    "overall_rating",
+    "avg_patient_rating"
+  ]
+}

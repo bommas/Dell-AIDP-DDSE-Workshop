@@ -1,0 +1,6 @@
+// High-rated providers in Chicago (overall_rating >= 4)
+FROM nursing-providers
+| WHERE TO_LOWER(city) == "chicago" AND state == "IL" AND overall_rating >= 4
+| KEEP provider_name, medical_specialty, city, state, overall_rating, avg_patient_rating, certified_beds
+| SORT overall_rating DESC, avg_patient_rating DESC
+| LIMIT 20

@@ -1,0 +1,6 @@
+// Specialty breakdown for Austin, TX
+FROM nursing-providers
+| WHERE TO_LOWER(city) == "austin" AND state == "TX"
+| STATS providers = COUNT(*) BY medical_specialty
+| SORT providers DESC
+| LIMIT 30

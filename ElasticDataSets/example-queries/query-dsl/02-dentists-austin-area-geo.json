@@ -1,0 +1,47 @@
+{
+  "size": 20,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "semantic": {
+            "field": "medical_specialty_semantic",
+            "query": "dentist dental care oral health"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "geo_distance": {
+            "distance": "40km",
+            "location": {
+              "lat": 30.2672,
+              "lon": -97.7431
+            }
+          }
+        }
+      ]
+    }
+  },
+  "sort": [
+    {
+      "_geo_distance": {
+        "location": {
+          "lat": 30.2672,
+          "lon": -97.7431
+        },
+        "order": "asc",
+        "unit": "km"
+      }
+    }
+  ],
+  "_source": [
+    "provider_name",
+    "medical_specialty",
+    "city",
+    "state",
+    "location",
+    "overall_rating",
+    "avg_patient_rating"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "size": 0,
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "city": {
+              "value": "austin",
+              "case_insensitive": true
+            }
+          }
+        },
+        {
+          "term": {
+            "state": "TX"
+          }
+        }
+      ]
+    }
+  },
+  "aggs": {
+    "specialties": {
+      "terms": {
+        "field": "medical_specialty",
+        "size": 30
+      }
+    }
+  }
+}

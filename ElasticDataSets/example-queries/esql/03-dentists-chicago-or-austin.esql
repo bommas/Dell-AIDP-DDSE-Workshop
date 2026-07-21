@@ -1,0 +1,8 @@
+// Semantic dentist search in Chicago IL or Austin TX
+FROM nursing-providers
+| WHERE MATCH(medical_specialty_semantic, "dentist dental care")
+| WHERE (TO_LOWER(city) == "chicago" AND state == "IL")
+    OR (TO_LOWER(city) == "austin" AND state == "TX")
+| KEEP provider_name, medical_specialty, city, state, overall_rating, avg_patient_rating
+| SORT city ASC, overall_rating DESC
+| LIMIT 20
