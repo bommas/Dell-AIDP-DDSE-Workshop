@@ -26,6 +26,7 @@ export type SearchHit = {
   telephone: string;
   zip: string;
   location: { lat: number; lon: number } | null;
+  distanceKm?: number;
   snippet: string;
   index: string;
 };

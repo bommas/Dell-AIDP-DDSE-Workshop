@@ -195,49 +195,218 @@ function resolveEsUrl(esUrl, kibanaUrl) {
   return "";
 }
 
-app.post("/api/search", async (req, res) => {
-  const esUrl = resolveEsUrl(req.body?.esUrl, req.body?.kibanaUrl);
-  const apiKey = apiKeyHeader(req.body?.apiKey);
-  const index = String(req.body?.index || "nursing-providers").trim();
-  const query = String(req.body?.query || "").trim();
-  const size = Math.min(Number(req.body?.size) || 10, 25);
+/** Known cities → default state + approximate downtown geo for distance filters. */
+const CITY_CATALOG = [
+  { name: "chicago", state: "IL", lat: 41.8781, lon: -87.6298 },
+  { name: "austin", state: "TX", lat: 30.2672, lon: -97.7431 },
+  { name: "houston", state: "TX", lat: 29.7604, lon: -95.3698 },
+  { name: "dallas", state: "TX", lat: 32.7767, lon: -96.797 },
+  { name: "new york", state: "NY", lat: 40.7128, lon: -74.006 },
+  { name: "los angeles", state: "CA", lat: 34.0522, lon: -118.2437 },
+  { name: "miami", state: "FL", lat: 25.7617, lon: -80.1918 },
+  { name: "seattle", state: "WA", lat: 47.6062, lon: -122.3321 },
+  { name: "denver", state: "CO", lat: 39.7392, lon: -104.9903 },
+  { name: "atlanta", state: "GA", lat: 33.749, lon: -84.388 },
+  { name: "phoenix", state: "AZ", lat: 33.4484, lon: -112.074 },
+  { name: "boston", state: "MA", lat: 42.3601, lon: -71.0589 },
+  { name: "philadelphia", state: "PA", lat: 39.9526, lon: -75.1652 },
+  { name: "san francisco", state: "CA", lat: 37.7749, lon: -122.4194 },
+  { name: "san antonio", state: "TX", lat: 29.4241, lon: -98.4936 },
+];
 
-  if (!esUrl || !apiKey || !query) {
-    return res.status(400).json({
-      error: "esUrl (or kibanaUrl), apiKey, and query are required",
-    });
+const STATE_ALIASES = {
+  illinois: "IL",
+  texas: "TX",
+  california: "CA",
+  florida: "FL",
+  "new york": "NY",
+  washington: "WA",
+  colorado: "CO",
+  georgia: "GA",
+  arizona: "AZ",
+  massachusetts: "MA",
+  pennsylvania: "PA",
+};
+
+const LOCATION_FILLER =
+  /\b(in|near|around|at|within|close to|area|metro|greater|downtown|or)\b/gi;
+
+/**
+ * Parse free-text search into specialty/topic text + optional city/geo filters
+ * (mirrors example-queries ES|QL city/geo patterns).
+ */
+function parseSearchIntent(rawQuery) {
+  const original = String(rawQuery || "").trim();
+  let working = original;
+  const lower = original.toLowerCase();
+
+  const places = [];
+  // Prefer longer city names first (e.g. "san francisco" before "san")
+  const sortedCities = [...CITY_CATALOG].sort((a, b) => b.name.length - a.name.length);
+  for (const city of sortedCities) {
+    const re = new RegExp(`\\b${city.name.replace(/\s+/g, "\\s+")}\\b`, "i");
+    if (re.test(working)) {
+      places.push({ ...city });
+      working = working.replace(re, " ");
+    }
   }
 
-  const searchUrl = `${esUrl}/${encodeURIComponent(index)}/_search`;
+  // Explicit state tokens (IL, Texas, etc.)
+  let inferredState = null;
+  for (const [name, code] of Object.entries(STATE_ALIASES)) {
+    const re = new RegExp(`\\b${name}\\b`, "i");
+    if (re.test(working)) {
+      inferredState = code;
+      working = working.replace(re, " ");
+    }
+  }
+  const stateCodeMatch = working.match(/\b([A-Za-z]{2})\b/);
+  if (stateCodeMatch && /^[A-Za-z]{2}$/.test(stateCodeMatch[1])) {
+    const code = stateCodeMatch[1].toUpperCase();
+    // Only treat as state if it looks like a USPS code we know, or follows a city
+    const known = new Set(CITY_CATALOG.map((c) => c.state));
+    if (known.has(code) || places.length > 0) {
+      inferredState = code;
+      working = working.replace(stateCodeMatch[0], " ");
+    }
+  }
+
+  // "within 25km/miles of …" radius
+  let radiusKm = 40;
+  const radiusMatch = lower.match(/\bwithin\s+(\d+)\s*(km|kilometers|mi|miles)\b/);
+  if (radiusMatch) {
+    const n = Number(radiusMatch[1]);
+    radiusKm = radiusMatch[2].startsWith("mi") ? Math.round(n * 1.609) : n;
+    working = working.replace(/\bwithin\s+\d+\s*(km|kilometers|mi|miles)\b/i, " ");
+  }
+
+  const useGeo =
+    /\b(near|around|within|close to|area|metro|greater|downtown)\b/i.test(original) ||
+    /\bgeo\b/i.test(original);
+
+  // Apply inferred state to places missing one / constrain places
+  const resolvedPlaces = places.map((p) => ({
+    ...p,
+    state: inferredState && places.length === 1 ? inferredState : p.state,
+  }));
+
+  let topic = working
+    .replace(LOCATION_FILLER, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!topic) {
+    topic = original; // fall back so semantic still has something
+  }
+
+  return {
+    original,
+    topic,
+    places: resolvedPlaces,
+    useGeo,
+    radiusKm,
+  };
+}
+
+function cityStateFilter(place) {
+  const filters = [
+    {
+      term: {
+        city: { value: place.name, case_insensitive: true },
+      },
+    },
+  ];
+  if (place.state) {
+    filters.push({ term: { state: place.state } });
+  }
+  return { bool: { filter: filters } };
+}
+
+function geoFilter(place, radiusKm) {
+  return {
+    geo_distance: {
+      distance: `${radiusKm}km`,
+      location: { lat: place.lat, lon: place.lon },
+    },
+  };
+}
+
+/**
+ * Build hybrid lexical + semantic Query DSL with optional city / geo filters.
+ */
+function buildHybridSearchBody(intent, size) {
+  const lexicalQuery = intent.topic;
+  const semanticQuery = intent.topic;
+
+  const should = [
+    {
+      multi_match: {
+        query: lexicalQuery,
+        fields: [
+          "provider_name^3",
+          "medical_specialty^4",
+          "city^2",
+          "state",
+          "search_text^2",
+          "county",
+          "ownership_type",
+          "provider_address",
+        ],
+        type: "best_fields",
+        fuzziness: "AUTO",
+        operator: "or",
+      },
+    },
+    {
+      match_phrase: {
+        medical_specialty: {
+          query: lexicalQuery,
+          boost: 3,
+          slop: 2,
+        },
+      },
+    },
+    {
+      semantic: {
+        field: "medical_specialty_semantic",
+        query: semanticQuery,
+      },
+    },
+  ];
+
+  const filter = [];
+  if (intent.places.length > 0) {
+    if (intent.useGeo) {
+      // Geo around one or more matched cities (OR)
+      filter.push({
+        bool: {
+          should: intent.places.map((p) => geoFilter(p, intent.radiusKm)),
+          minimum_should_match: 1,
+        },
+      });
+    } else {
+      // Exact city/state filters (like ES|QL chicago OR austin example)
+      filter.push({
+        bool: {
+          should: intent.places.map((p) => cityStateFilter(p)),
+          minimum_should_match: 1,
+        },
+      });
+    }
+  }
+
   const body = {
     size,
     query: {
       bool: {
-        should: [
+        must: [
           {
-            multi_match: {
-              query,
-              fields: [
-                "provider_name^3",
-                "medical_specialty^2",
-                "city^2",
-                "state",
-                "search_text",
-                "county",
-                "ownership_type",
-              ],
-              type: "best_fields",
-              fuzziness: "AUTO",
-            },
-          },
-          {
-            semantic: {
-              field: "medical_specialty_semantic",
-              query,
+            bool: {
+              should,
+              minimum_should_match: 1,
             },
           },
         ],
-        minimum_should_match: 1,
+        filter,
       },
     },
     _source: [
@@ -264,6 +433,50 @@ app.post("/api/search", async (req, res) => {
     },
   };
 
+  // Sort by distance when a single geo center is used
+  if (intent.useGeo && intent.places.length === 1) {
+    const p = intent.places[0];
+    body.sort = [
+      {
+        _geo_distance: {
+          location: { lat: p.lat, lon: p.lon },
+          order: "asc",
+          unit: "km",
+        },
+      },
+      "_score",
+    ];
+  }
+
+  return body;
+}
+
+function stripSemanticClauses(body) {
+  const clone = JSON.parse(JSON.stringify(body));
+  const should = clone?.query?.bool?.must?.[0]?.bool?.should;
+  if (Array.isArray(should)) {
+    clone.query.bool.must[0].bool.should = should.filter((c) => !c.semantic);
+  }
+  return clone;
+}
+
+app.post("/api/search", async (req, res) => {
+  const esUrl = resolveEsUrl(req.body?.esUrl, req.body?.kibanaUrl);
+  const apiKey = apiKeyHeader(req.body?.apiKey);
+  const index = String(req.body?.index || "nursing-providers").trim();
+  const query = String(req.body?.query || "").trim();
+  const size = Math.min(Number(req.body?.size) || 10, 25);
+
+  if (!esUrl || !apiKey || !query) {
+    return res.status(400).json({
+      error: "esUrl (or kibanaUrl), apiKey, and query are required",
+    });
+  }
+
+  const intent = parseSearchIntent(query);
+  const searchUrl = `${esUrl}/${encodeURIComponent(index)}/_search`;
+  let body = buildHybridSearchBody(intent, size);
+
   try {
     const response = await fetch(searchUrl, {
       method: "POST",
@@ -284,8 +497,7 @@ app.post("/api/search", async (req, res) => {
     if (!response.ok) {
       // Fallback without semantic clause if cluster rejects it
       if (response.status === 400 && /semantic/i.test(JSON.stringify(payload))) {
-        delete body.query.bool.should[1];
-        body.query.bool.should = [body.query.bool.should[0]];
+        body = stripSemanticClauses(body);
         const retry = await fetch(searchUrl, {
           method: "POST",
           headers: {
@@ -301,6 +513,7 @@ app.post("/api/search", async (req, res) => {
           return res.status(retry.status).json({
             error: `Search failed (${retry.status})`,
             details: retryPayload,
+            intent,
           });
         }
         payload = retryPayload;
@@ -308,6 +521,7 @@ app.post("/api/search", async (req, res) => {
         return res.status(response.status).json({
           error: `Search failed (${response.status})`,
           details: payload,
+          intent,
         });
       }
     }
@@ -324,6 +538,7 @@ app.post("/api/search", async (req, res) => {
       const snippet =
         snippetParts[0] ||
         [src.medical_specialty, src.city, src.state, src.provider_address].filter(Boolean).join(" · ");
+      const sortDist = Array.isArray(hit.sort) ? hit.sort[0] : undefined;
       return {
         id: hit._id,
         score: hit._score,
@@ -337,6 +552,7 @@ app.post("/api/search", async (req, res) => {
         telephone: src.telephone || "",
         zip: src.zip_code || "",
         location: src.location || null,
+        distanceKm: typeof sortDist === "number" ? Math.round(sortDist * 10) / 10 : undefined,
         snippet,
         index,
       };
@@ -345,6 +561,7 @@ app.post("/api/search", async (req, res) => {
     return res.json({
       total: payload?.hits?.total?.value ?? hits.length,
       took: payload?.took,
+      intent,
       hits,
     });
   } catch (err) {

@@ -46,6 +46,7 @@ export function SearchResults({ query, total, took, hits, loading }: Props) {
           const ratings = [
             hit.rating != null ? `Overall ${hit.rating}` : null,
             hit.patientRating != null ? `Patient ${hit.patientRating}` : null,
+            hit.distanceKm != null ? `${hit.distanceKm} km away` : null,
           ]
             .filter(Boolean)
             .join(" · ");
