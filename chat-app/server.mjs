@@ -231,6 +231,65 @@ const STATE_ALIASES = {
 const LOCATION_FILLER =
   /\b(in|near|around|at|within|close to|area|metro|greater|downtown|or)\b/gi;
 
+const QUERY_FILLER =
+  /\b(find|finding|looking for|search for|show me|get me|please|the|a|an|some|any)\b/gi;
+
+/** Expand common layperson specialty phrases for lexical matching + exact specialty terms. */
+const SPECIALTY_SYNONYMS = [
+  {
+    pattern: /\bkidney\b|\brenal\b|\bnephrolog/i,
+    add: "nephrology renal dialysis",
+    terms: ["Nephrology", "Dialysis and Renal Care"],
+  },
+  {
+    pattern: /\bheart\b|\bcardiac\b|\bcardiolog/i,
+    add: "cardiology",
+    terms: ["Cardiology", "Cardiac Rehabilitation"],
+  },
+  {
+    pattern: /\beye\b|\bvision\b|\boptical\b|\bophthalm|\boptometr/i,
+    add: "ophthalmology optometry",
+    terms: [
+      "Ophthalmology",
+      "Optometry",
+      "Cataract Surgery",
+      "Glaucoma Care",
+      "Retinal and Vitreous Care",
+      "Diabetic Eye Care",
+    ],
+  },
+  {
+    pattern: /\bdentist\b|\bdental\b|\bteeth\b|\btooth\b|\boral\b/i,
+    add: "dental oral",
+    terms: [],
+  },
+  {
+    pattern: /\blung\b|\bbreathing\b|\bpulmon/i,
+    add: "pulmonology respiratory",
+    terms: ["Pulmonology", "Respiratory Therapy"],
+  },
+  {
+    pattern: /\bskin\b|\bdermatolog/i,
+    add: "dermatology",
+    terms: ["Dermatology"],
+  },
+  {
+    pattern: /\bbiabetes\b|\bdiabetic\b|\bendocrin/i,
+    add: "endocrinology",
+    terms: ["Endocrinology", "Diabetic Eye Care"],
+  },
+  {
+    pattern: /\bstroke\b/i,
+    add: "stroke rehabilitation",
+    terms: ["Stroke Rehabilitation"],
+  },
+  {
+    pattern: /\bgeriatric\b|\bsenior\b/i,
+    add: "geriatric medicine",
+    terms: ["Geriatric Medicine", "Behavioral Health for Seniors"],
+  },
+];
+
 /**
  * Parse free-text search into specialty/topic text + optional city/geo filters
  * (mirrors example-queries ES|QL city/geo patterns).
@@ -263,7 +322,6 @@ function parseSearchIntent(rawQuery) {
   const stateCodeMatch = working.match(/\b([A-Za-z]{2})\b/);
   if (stateCodeMatch && /^[A-Za-z]{2}$/.test(stateCodeMatch[1])) {
     const code = stateCodeMatch[1].toUpperCase();
-    // Only treat as state if it looks like a USPS code we know, or follows a city
     const known = new Set(CITY_CATALOG.map((c) => c.state));
     if (known.has(code) || places.length > 0) {
       inferredState = code;
@@ -280,11 +338,9 @@ function parseSearchIntent(rawQuery) {
     working = working.replace(/\bwithin\s+\d+\s*(km|kilometers|mi|miles)\b/i, " ");
   }
 
-  const useGeo =
-    /\b(near|around|within|close to|area|metro|greater|downtown)\b/i.test(original) ||
-    /\bgeo\b/i.test(original);
+  // Strict geo intent: near/around/within — NOT bare "area" (e.g. "Chicago area" = city filter)
+  const useGeo = /\b(near|around|within|close to)\b/i.test(original) || /\bgeo\b/i.test(original);
 
-  // Apply inferred state to places missing one / constrain places
   const resolvedPlaces = places.map((p) => ({
     ...p,
     state: inferredState && places.length === 1 ? inferredState : p.state,
@@ -292,15 +348,37 @@ function parseSearchIntent(rawQuery) {
 
   let topic = working
     .replace(LOCATION_FILLER, " ")
+    .replace(QUERY_FILLER, " ")
+    .replace(/\b(specialists?|doctors?|providers?|clinics?|care)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!topic) {
-    topic = original; // fall back so semantic still has something
+    topic = original;
   }
+
+  // Lexical expansion (kidney → nephrology) + exact specialty terms from the index
+  const synonymExtras = [];
+  const specialtyTerms = [];
+  for (const syn of SPECIALTY_SYNONYMS) {
+    if (syn.pattern.test(topic) || syn.pattern.test(original)) {
+      synonymExtras.push(syn.add);
+      for (const t of syn.terms || []) {
+        if (!specialtyTerms.includes(t)) specialtyTerms.push(t);
+      }
+    }
+  }
+  const lexicalTopic = [topic, ...synonymExtras].join(" ").replace(/\s+/g, " ").trim();
+  // Semantic prompt closer to what an agent interprets
+  const semanticTopic = specialtyTerms.length
+    ? `${topic} ${specialtyTerms.join(" ")}`
+    : topic;
 
   return {
     original,
     topic,
+    lexicalTopic,
+    semanticTopic,
+    specialtyTerms,
     places: resolvedPlaces,
     useGeo,
     radiusKm,
@@ -332,43 +410,57 @@ function geoFilter(place, radiusKm) {
 
 /**
  * Build hybrid lexical + semantic Query DSL with optional city / geo filters.
+ * Specialty relevance is primary (aligned with Agent Builder answers); location is a filter.
  */
 function buildHybridSearchBody(intent, size) {
-  const lexicalQuery = intent.topic;
-  const semanticQuery = intent.topic;
+  const semanticQuery = intent.semanticTopic || intent.topic;
+  const lexicalQuery = intent.lexicalTopic || intent.topic;
 
-  const should = [
+  // Specialty match is required. Prefer exact index specialties when we can resolve them
+  // (e.g. kidney → Nephrology), matching how the AI agent interprets the ask.
+  const specialtyShould = [
+    {
+      semantic: {
+        field: "medical_specialty_semantic",
+        query: semanticQuery,
+      },
+    },
     {
       multi_match: {
         query: lexicalQuery,
-        fields: [
-          "provider_name^3",
-          "medical_specialty^4",
-          "city^2",
-          "state",
-          "search_text^2",
-          "county",
-          "ownership_type",
-          "provider_address",
-        ],
+        fields: ["medical_specialty^10", "search_text^2"],
         type: "best_fields",
-        fuzziness: "AUTO",
         operator: "or",
       },
     },
     {
       match_phrase: {
         medical_specialty: {
-          query: lexicalQuery,
-          boost: 3,
-          slop: 2,
+          query: intent.topic,
+          boost: 4,
+          slop: 3,
         },
       },
     },
+  ];
+
+  if (intent.specialtyTerms?.length) {
+    specialtyShould.unshift({
+      terms: {
+        medical_specialty: intent.specialtyTerms,
+        boost: 12,
+      },
+    });
+  }
+
+  const lexicalBoosts = [
     {
-      semantic: {
-        field: "medical_specialty_semantic",
-        query: semanticQuery,
+      multi_match: {
+        query: lexicalQuery,
+        fields: ["provider_name^2", "medical_specialty^6", "search_text"],
+        type: "best_fields",
+        fuzziness: "AUTO",
+        operator: "or",
       },
     },
   ];
@@ -376,7 +468,6 @@ function buildHybridSearchBody(intent, size) {
   const filter = [];
   if (intent.places.length > 0) {
     if (intent.useGeo) {
-      // Geo around one or more matched cities (OR)
       filter.push({
         bool: {
           should: intent.places.map((p) => geoFilter(p, intent.radiusKm)),
@@ -384,7 +475,6 @@ function buildHybridSearchBody(intent, size) {
         },
       });
     } else {
-      // Exact city/state filters (like ES|QL chicago OR austin example)
       filter.push({
         bool: {
           should: intent.places.map((p) => cityStateFilter(p)),
@@ -394,21 +484,32 @@ function buildHybridSearchBody(intent, size) {
     }
   }
 
+  // When we know exact specialties (agent-like intent), constrain to those specialties
+  // so unrelated Chicago hits (e.g. Diabetic Eye Care for "kidney") cannot outrank.
+  if (intent.specialtyTerms?.length) {
+    filter.push({
+      terms: { medical_specialty: intent.specialtyTerms },
+    });
+  }
+
   const body = {
     size,
+    track_scores: true,
     query: {
       bool: {
         must: [
           {
             bool: {
-              should,
+              should: specialtyShould,
               minimum_should_match: 1,
             },
           },
         ],
+        should: lexicalBoosts,
         filter,
       },
     },
+    sort: ["_score"],
     _source: [
       "provider_name",
       "medical_specialty",
@@ -433,10 +534,10 @@ function buildHybridSearchBody(intent, size) {
     },
   };
 
-  // Sort by distance when a single geo center is used
   if (intent.useGeo && intent.places.length === 1) {
     const p = intent.places[0];
     body.sort = [
+      "_score",
       {
         _geo_distance: {
           location: { lat: p.lat, lon: p.lon },
@@ -444,7 +545,6 @@ function buildHybridSearchBody(intent, size) {
           unit: "km",
         },
       },
-      "_score",
     ];
   }
 
@@ -538,7 +638,12 @@ app.post("/api/search", async (req, res) => {
       const snippet =
         snippetParts[0] ||
         [src.medical_specialty, src.city, src.state, src.provider_address].filter(Boolean).join(" · ");
-      const sortDist = Array.isArray(hit.sort) ? hit.sort[0] : undefined;
+      const sortVals = Array.isArray(hit.sort) ? hit.sort : [];
+      // When sort is [_score, _geo_distance], distance is the last numeric geo value
+      const sortDist =
+        sortVals.length > 1 && typeof sortVals[sortVals.length - 1] === "number"
+          ? sortVals[sortVals.length - 1]
+          : undefined;
       return {
         id: hit._id,
         score: hit._score,
