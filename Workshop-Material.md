@@ -3,7 +3,7 @@
 
 ## Lab Location
 
-**Instruqt Lab:** [https://play.instruqt.com/elastic/tracks/dell-aidp-demo-day/](https://play.instruqt.com/elastic/tracks/dell-aidp-demo-day/)
+**Instruqt Lab:** https://ela.st/dell-handson
 
 > ⚠️ Lab environments auto-terminate after **180 minutes**. Script your builds (data load, vectorization, app setup) so you can spin back up and be demo-ready in under 10 minutes.
 
